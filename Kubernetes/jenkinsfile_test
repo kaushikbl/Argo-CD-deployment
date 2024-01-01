@@ -1,0 +1,47 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Clone repository') {
+            steps {
+                script {
+                    // Clone the source repository
+                    git branch: 'main', credentialsId: 'github-jenkins', url: 'https://github.com/kaushikbl/DevSecOps-Project.git'
+                }
+            }
+        }
+    
+    stage('Modify deployment file') {
+            steps {
+                script {
+                    
+                    buildNumber = "${BUILD_NUMBER}"
+                    // Make necessary modifications to the deployment file
+                    sh "sed -i 's/BUILD_TAG/${buildNumber}/g' Kubernetes/deployment.yml"
+                    sh "cat Kubernetes/deployment.yml"
+                    
+                    sh "cp /var/lib/jenkins/workspace/test/Kubernetes/deployment.yml /var/lib/jenkins/workspace/deployment.yml"
+                }
+            }
+        }
+    
+    stage('Push changes to another repository') {
+            environment {
+            GIT_REPO_NAME = "Argo-CD-deployment"
+            GIT_USER_NAME = "kaushikbl"
+            GITHUB_TOKEN = "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"
+            
+           }
+            steps {
+                script {
+                    // Commit and push changes to the destination repository
+                    git branch: 'main', credentialsId: 'github-jenkins', url: 'https://github.com/kaushikbl/Argo-CD-deployment.git'
+                    sh 'mv /var/lib/jenkins/workspace/deployment.yml /var/lib/jenkins/workspace/test/Kubernetes/deployment.yml'
+                    sh 'git add .'
+                    sh 'git commit -m "Modified deployment file"'
+                    sh 'git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main'    
+                }
+            }
+        }
+    }
+}
